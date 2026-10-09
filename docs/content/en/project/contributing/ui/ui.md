@@ -109,8 +109,9 @@ Now, Meshery will run on the default port `http://localhost:9081`.
 
 **Please note**: If you see "Meshery Development Incompatible" while trying to sign into Meshery Server, then follow these steps:
 
-<a href="../images/meshery-development-incompatible-error.png">
-  <img style= "width: 600px;" src="../images/meshery-development-incompatible-error.png" />
+<a href="../../images/meshery-development-incompatible-error.png">
+  <img style="width: 600px;" src="../../images/meshery-development-incompatible-error.png"
+       alt="Meshery Development Incompatible error dialog" />
 </a>
 
 Potential Solution:
@@ -129,7 +130,7 @@ If you want to work on the UI, it will be a good idea to use the included UI dev
 
 {{< code code=`make ui` >}}
 
-Refer to [Contributing to Meshery Server](contributing-server), if needed.
+Refer to [Contributing to Meshery Server]({{< ref "project/contributing/contributing-server" >}}), if needed.
 
 > Make sure to have Meshery Server configured, up and running on the default port `http://localhost:9081` and choose a provider to login with (visit `http://localhost:9081`) before proceeding to access and work on the UI server at `http://localhost:3000`.
 
@@ -137,7 +138,7 @@ Any UI changes made now will _automatically_ be rebuilt and served in your brows
 
 ### Running end-to-end integration tests
 
-Refer to [Meshery UI Testing](contributing-ui-tests) for details of how to contribute and benefit from Meshery UI testing.
+Refer to [Meshery UI Testing]({{< ref "project/contributing/ui/tests" >}}) for details of how to contribute and benefit from Meshery UI testing.
 
 ### Static Files, Icons and Images
 
@@ -183,3 +184,19 @@ Images and icons used in Meshery UI need to be sourced from the [public director
 For accessing the svg file as data-url, the utf8 encoding should be used in place of base64.Use [encodeURIComponent](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) on SVG data URIs. \
 
 {{< code code=`let svg = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgFile);` >}}
+
+## UI Extensions (Remote Components)
+
+Extensions are loaded as Remote Components via `@paciolan/remote-component`.
+
+An extension bundle **must** expose `module.exports = { default: Component, __esModule: true }`. A bundle built without `output.library.type = "commonjs2"` resolves to `undefined` with no loader error at all, so `NavigatorExtension` guards for that case explicitly and reports the export shape as the cause. See `ui/components/layout/Navigator/NavigatorExtension.tsx`.
+
+### The host and extension share one declared contract
+
+The host to extension contract - injected capability keys, event-bus event literals, and the contract version - is declared once in `@sistent/sistent`'s `mesheryExtensionContract` module and shared by both sides.
+
+Derive every event literal from `MESHERY_EXTENSION_EVENT`, and every injected key from that module, rather than typing strings. Hand-duplicated literals are why `OPEN_DESIGN_IN_KANVAS` → `OPEN_DESIGN_IN_EXTENSION` and `capabilitiesRegistry` → `providerCapabilities` both shipped as silent runtime no-ops.
+
+`ui/utils/eventBus.ts` must stay typed as `EventBus<MesheryExtensionEvent>`. A bare `new EventBus()` widens `T` to its constraint and disables publish-site checking entirely.
+
+The `NavigatorExtension` unit test asserts the built `injectProps` bag against the contract; that is the gate which catches a capability rename before merge.
