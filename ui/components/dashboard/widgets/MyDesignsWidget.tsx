@@ -67,7 +67,7 @@ const MyDesignsWidget = ({ iconsProps }: MyDesignsWidgetProps) => {
       userId: userData?.id,
       metrics: true,
     },
-    { skip: !userData?.id || isLocal },
+    { skip: !userData?.id || !providerCapabilities || isLocal },
   );
   const theme = useTheme();
 

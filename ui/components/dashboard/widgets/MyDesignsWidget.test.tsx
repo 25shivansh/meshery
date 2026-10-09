@@ -9,8 +9,9 @@ let patternsReturn: {
   isFetching?: boolean;
   isError?: boolean;
 } = { data: { patterns: [] }, isFetching: false, isError: false };
-let providerCapabilitiesReturn: { data?: { providerType?: string } } = {
+let providerCapabilitiesReturn: { data?: { providerType?: string }; isLoading?: boolean } = {
   data: { providerType: 'remote' },
+  isLoading: false,
 };
 
 const designCardSpy = vi.fn();
@@ -117,7 +118,7 @@ describe('MyDesignsWidget', () => {
     widgetErrorFallbackSpy.mockReset();
     loggedInReturn = { data: { id: 'user-1' } };
     patternsReturn = { data: { patterns: [] }, isFetching: false, isError: false };
-    providerCapabilitiesReturn = { data: { providerType: 'remote' } };
+    providerCapabilitiesReturn = { data: { providerType: 'remote' }, isLoading: false };
   });
 
   it('renders the DesignCard with default props', () => {
@@ -214,5 +215,26 @@ describe('MyDesignsWidget', () => {
     render(<MyDesignsWidget />);
     const [, options] = useGetUserDesignsQuerySpy.mock.calls[0];
     expect(options).toEqual({ skip: false });
+  });
+
+  it('skips fetching designs while provider capabilities are still loading, even if user id is available', () => {
+    providerCapabilitiesReturn = { data: undefined, isLoading: true };
+    render(<MyDesignsWidget />);
+    const [, options] = useGetUserDesignsQuerySpy.mock.calls[0];
+    expect(options).toEqual({ skip: true });
+  });
+
+  it('renders the DesignCard (not the error fallback) while provider capabilities are loading', () => {
+    providerCapabilitiesReturn = { data: undefined, isLoading: true };
+    render(<MyDesignsWidget />);
+    expect(screen.getByTestId('design-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('widget-error-fallback')).not.toBeInTheDocument();
+  });
+
+  it('skips fetching designs when provider capabilities resolve as undefined', () => {
+    providerCapabilitiesReturn = { data: undefined, isLoading: false };
+    render(<MyDesignsWidget />);
+    const [, options] = useGetUserDesignsQuerySpy.mock.calls[0];
+    expect(options).toEqual({ skip: true });
   });
 });
