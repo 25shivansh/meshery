@@ -9,13 +9,22 @@ let patternsReturn: {
   isFetching?: boolean;
   isError?: boolean;
 } = { data: { patterns: [] }, isFetching: false, isError: false };
+let providerCapabilitiesReturn: { data?: { providerType?: string } } = {
+  data: { providerType: 'remote' },
+};
 
 const designCardSpy = vi.fn();
 const useGetUserDesignsQuerySpy = vi.fn();
 
 vi.mock('@/rtk-query/user', () => ({
   useGetLoggedInUserQuery: () => loggedInReturn,
+  useGetProviderCapabilitiesQuery: () => providerCapabilitiesReturn,
 }));
+
+vi.mock('@/utils/provider', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/provider')>('@/utils/provider');
+  return actual;
+});
 
 vi.mock('@/rtk-query/design', () => ({
   useGetUserDesignsQuery: (...args: unknown[]) => {
@@ -108,6 +117,7 @@ describe('MyDesignsWidget', () => {
     widgetErrorFallbackSpy.mockReset();
     loggedInReturn = { data: { id: 'user-1' } };
     patternsReturn = { data: { patterns: [] }, isFetching: false, isError: false };
+    providerCapabilitiesReturn = { data: { providerType: 'remote' } };
   });
 
   it('renders the DesignCard with default props', () => {
@@ -183,5 +193,26 @@ describe('MyDesignsWidget', () => {
       'My Recent Designs',
     );
     expect(screen.queryByTestId('design-card')).not.toBeInTheDocument();
+  });
+
+  it('skips fetching designs on the built-in local provider', () => {
+    providerCapabilitiesReturn = { data: { providerType: 'local' } };
+    render(<MyDesignsWidget />);
+    const [, options] = useGetUserDesignsQuerySpy.mock.calls[0];
+    expect(options).toEqual({ skip: true });
+  });
+
+  it('renders the DesignCard (not the error fallback) on the local provider', () => {
+    providerCapabilitiesReturn = { data: { providerType: 'local' } };
+    render(<MyDesignsWidget />);
+    expect(screen.getByTestId('design-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('widget-error-fallback')).not.toBeInTheDocument();
+  });
+
+  it('does not skip fetching designs on a remote provider with a valid user id', () => {
+    providerCapabilitiesReturn = { data: { providerType: 'remote' } };
+    render(<MyDesignsWidget />);
+    const [, options] = useGetUserDesignsQuerySpy.mock.calls[0];
+    expect(options).toEqual({ skip: false });
   });
 });
